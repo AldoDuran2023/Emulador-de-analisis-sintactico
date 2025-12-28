@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Compilador JS - Final (Con Comparaciones)</title>
+    <title>Compilador JS - Try/Catch</title>
     <style>
       :root {
         --bg-color: #1e1e1e;
@@ -305,7 +305,7 @@
     <div class="container">
       <div class="editor-section">
         <div class="toolbar">
-          <h1>Compilador JS (Corregido)</h1>
+          <h1>Compilador JS (Try-Catch)</h1>
           <button onclick="compile()">COMPILAR ▶</button>
         </div>
         <textarea
@@ -314,13 +314,15 @@
           placeholder="// Escribe tu código aquí..."
         >
 let a = 10;
-let b = 5;
 
-// Cálculo básico
-let x = a + b * 2; 
+try {
+  let resultado = a / 0;
+} catch (error) {
+  a = 0;
+}
 
-if (x > 15) {
-   a = 0;
+if (a > 5) {
+  a = 1;
 }
 </textarea
         >
@@ -328,12 +330,39 @@ if (x > 15) {
           <div class="grammar-title">GRAMÁTICA & REGLAS</div>
           <div style="color: #6a9955">IGNORADO: // Comentarios</div>
           <div>-----------------------------------</div>
-          <div style="color: #569cd6">Comparación → Exp (>|<|==) Exp</div>
-          <div style="color: #4ec9b0">Expression → Term { (+|-) Term }</div>
-          <div style="color: #ce9178">Term → Factor { (*|/) Factor }</div>
-          <div style="color: #dcdcaa">Factor → ( Expr ) | ID | NUM</div>
+
+          <div style="color: #569cd6">Programa → ListaSentencias</div>
+          <div style="color: #569cd6">
+            ListaSentencias → Sentencia { Sentencia }
+          </div>
+
+          <div style="color: #569cd6">Sentencia → SentenciaTry</div>
+          <div style="color: #569cd6">Sentencia → Comparacion ;</div>
+          <div style="color: #569cd6">Sentencia → Expresion ;</div>
+
+          <div style="color: #569cd6">
+            SentenciaTry → try { ListaSentencias } catch ( ID ) {
+            ListaSentencias }
+          </div>
+
+          <div style="color: #569cd6">
+            Comparacion → Expresion ( > | < | == ) Expresion
+          </div>
+
+          <div style="color: #4ec9b0">
+            Expresion → Termino { ( + | - ) Termino }
+          </div>
+
+          <div style="color: #ce9178">
+            Termino → Factor { ( * | / ) Factor }
+          </div>
+
+          <div style="color: #dcdcaa">
+            Factor → ( Expresion ) | ID | NUM (int/dec)
+          </div>
+
           <div>-----------------------------------</div>
-          <div>Prioridad: ( ) > * / > + - > Comparación</div>
+          <div>Prioridad: ( ) &gt; * / &gt; + - &gt; Comparación</div>
         </div>
       </div>
 
@@ -428,13 +457,27 @@ if (x > 15) {
               continue;
             }
 
+            // Números Decimales
             if (/[0-9]/.test(char)) {
               let num = "";
               while (
                 this.pos < this.input.length &&
                 /[0-9]/.test(this.input[this.pos])
-              )
+              ) {
                 num += this.input[this.pos++];
+              }
+              if (
+                this.pos < this.input.length &&
+                this.input[this.pos] === "."
+              ) {
+                num += this.input[this.pos++];
+                while (
+                  this.pos < this.input.length &&
+                  /[0-9]/.test(this.input[this.pos])
+                ) {
+                  num += this.input[this.pos++];
+                }
+              }
               tokens.push({ type: TokenType.NUM, value: num, line: this.line });
               continue;
             }
@@ -446,7 +489,15 @@ if (x > 15) {
                 /[a-zA-Z0-9_]/.test(this.input[this.pos])
               )
                 id += this.input[this.pos++];
-              const isKw = ["let", "if", "else", "function"].includes(id);
+              // AQUI AGREGAMOS "try" y "catch"
+              const isKw = [
+                "let",
+                "if",
+                "else",
+                "function",
+                "try",
+                "catch",
+              ].includes(id);
               tokens.push({
                 type: isKw ? TokenType.KEYWORD : TokenType.ID,
                 value: id,
@@ -455,7 +506,6 @@ if (x > 15) {
               continue;
             }
 
-            // Operadores (incluyendo comparación de varios caracteres)
             const twoChar = this.input.substr(this.pos, 2);
             if (["==", ">=", "<=", "!="].includes(twoChar)) {
               tokens.push({
@@ -539,18 +589,49 @@ if (x > 15) {
 
         parseStatement() {
           const t = this.peek();
+
+          // LÓGICA DE TRY-CATCH (INTEGRADA)
+          if (t.type === TokenType.KEYWORD && t.value === "try") {
+            this.consume(TokenType.KEYWORD);
+            this.consume(TokenType.PUNC, "{");
+            const tryBlock = [];
+            while (
+              this.peek().value !== "}" &&
+              this.peek().type !== TokenType.EOF
+            ) {
+              tryBlock.push(this.parseStatement());
+            }
+            this.consume(TokenType.PUNC, "}");
+
+            this.consume(TokenType.KEYWORD, "catch");
+            this.consume(TokenType.PUNC, "(");
+            const errorVar = this.consume(TokenType.ID).value;
+            this.consume(TokenType.PUNC, ")");
+            this.consume(TokenType.PUNC, "{");
+            const catchBlock = [];
+            while (
+              this.peek().value !== "}" &&
+              this.peek().type !== TokenType.EOF
+            ) {
+              catchBlock.push(this.parseStatement());
+            }
+            this.consume(TokenType.PUNC, "}");
+            return { type: "TryCatch", tryBlock, errorVar, catchBlock };
+          }
+
           if (t.type === TokenType.KEYWORD && t.value === "let") {
             this.consume(TokenType.KEYWORD);
             const id = this.consume(TokenType.ID).value;
             this.consume(TokenType.OP, "=");
-            const init = this.parseExpression(); // <--- Ahora llama al nivel superior (Comparación)
+            const init = this.parseExpression();
             this.consume(TokenType.PUNC, ";");
             return { type: "VarDecl", id, init };
           }
+
           if (t.type === TokenType.KEYWORD && t.value === "if") {
             this.consume(TokenType.KEYWORD);
             this.consume(TokenType.PUNC, "(");
-            const test = this.parseExpression(); // <--- Esto permite x > 15
+            const test = this.parseExpression();
             this.consume(TokenType.PUNC, ")");
             this.consume(TokenType.PUNC, "{");
             const cons = [];
@@ -562,6 +643,7 @@ if (x > 15) {
             this.consume(TokenType.PUNC, "}");
             return { type: "If", test, body: cons };
           }
+
           if (t.type === TokenType.ID) {
             const id = this.consume(TokenType.ID).value;
             this.consume(TokenType.OP, "=");
@@ -569,14 +651,14 @@ if (x > 15) {
             this.consume(TokenType.PUNC, ";");
             return { type: "Assign", left: id, right };
           }
+
           throw new Error(
             `Instrucción no reconocida en línea ${t.line}: '${t.value}'`
           );
         }
 
-        // NIVEL 1: COMPARACIONES (Menor prioridad, se ejecuta al final)
         parseExpression() {
-          let left = this.parseAddition(); // Llama a suma/resta primero
+          let left = this.parseAddition();
           while (
             [">", "<", ">=", "<=", "==", "!="].includes(this.peek().value)
           ) {
@@ -587,7 +669,6 @@ if (x > 15) {
           return left;
         }
 
-        // NIVEL 2: SUMA / RESTA
         parseAddition() {
           let left = this.parseTerm();
           while (this.peek().value === "+" || this.peek().value === "-") {
@@ -598,7 +679,6 @@ if (x > 15) {
           return left;
         }
 
-        // NIVEL 3: MULTIPLICACIÓN / DIVISIÓN
         parseTerm() {
           let left = this.parseFactor();
           while (this.peek().value === "*" || this.peek().value === "/") {
@@ -609,7 +689,6 @@ if (x > 15) {
           return left;
         }
 
-        // NIVEL 4: FACTORES (Números, IDs, Paréntesis)
         parseFactor() {
           const t = this.peek();
           if (t.type === TokenType.NUM) {
@@ -622,7 +701,7 @@ if (x > 15) {
           }
           if (t.value === "(") {
             this.consume(TokenType.PUNC, "(");
-            const expr = this.parseExpression(); // Recursividad al nivel más alto
+            const expr = this.parseExpression();
             this.consume(TokenType.PUNC, ")");
             return expr;
           }
@@ -687,6 +766,21 @@ if (x > 15) {
             label = "{ }";
             children = node.body;
             break;
+
+          // NUEVA VISUALIZACIÓN PARA TRY-CATCH
+          case "TryCatch":
+            label = "Try/Catch";
+            children = [
+              { type: "Block", body: node.tryBlock, label: "TRY" }, // Reutilizamos Block
+              { type: "CatchBlock", body: node.catchBlock, arg: node.errorVar },
+            ];
+            break;
+          case "CatchBlock":
+            label = "CATCH";
+            sub = "(" + node.arg + ")";
+            children = node.body;
+            break;
+
           case "ERROR_NODE":
             label = "ERROR";
             sub = "Sintaxis";
