@@ -1,0 +1,303 @@
+:root {
+  --bg-color: #1e1e1e;
+  --sidebar-bg: #252526;
+  --text-color: #d4d4d4;
+  --accent: #007acc;
+  --border: #3c3c3c;
+  --tree-line-color: #555;
+  --node-bg: #ffffff;
+  --node-border: #000000;
+}
+
+body {
+  font-family: "Segoe UI", sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  margin: 0;
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  padding: 25px;
+}
+
+.container {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+.editor-section {
+  width: 35%;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  padding: 10px;
+}
+.output-section {
+  width: 65%;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--sidebar-bg);
+}
+
+.toolbar {
+  padding: 10px;
+  background-color: #333;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+}
+h1 {
+  margin: 0;
+  font-size: 1rem;
+  color: #fff;
+}
+button {
+  background-color: var(--accent);
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  cursor: pointer;
+  border-radius: 3px;
+  font-weight: bold;
+}
+button:hover {
+  background-color: #0062a3;
+}
+
+textarea {
+  flex: 1;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  border: none;
+  padding: 15px;
+  font-family: "Consolas", monospace;
+  resize: none;
+  outline: none;
+  font-size: 14px;
+  line-height: 1.5;
+  border-bottom: 1px solid var(--border);
+}
+
+.grammar-panel {
+  flex: 1;
+  background-color: #2d2d2d;
+  padding: 10px;
+  font-family: "Consolas", monospace;
+  font-size: 0.8rem;
+  overflow-y: auto;
+  color: #8fa;
+  margin: 0rem;
+}
+.grammar-title {
+  font-size: 1.5em;
+  color: #fff;
+  margin-bottom: 5px;
+  font-weight: bold;
+  border-bottom: 1px solid #444;
+  padding-bottom: 2px;
+}
+
+.grammar-regla {
+  font-size: 1.2em;
+  margin-bottom: 8px;
+}
+
+.tabs {
+  display: flex;
+  background-color: #333;
+  border-bottom: 1px solid var(--border);
+}
+.tab {
+  padding: 10px 20px;
+  cursor: pointer;
+  border-right: 1px solid var(--border);
+  opacity: 0.7;
+  font-size: 0.9rem;
+}
+.tab.active {
+  background-color: var(--sidebar-bg);
+  opacity: 1;
+  border-top: 2px solid var(--accent);
+  font-weight: bold;
+}
+
+.panel {
+  flex: 1;
+  padding: 0;
+  overflow: auto;
+  display: none;
+  position: relative;
+}
+.panel.active {
+  display: block;
+}
+
+/* Estilos del Árbol */
+.tree-container {
+  width: 100%;
+  min-height: 100%;
+  text-align: center;
+  padding: 40px 20px;
+  background-color: #fff;
+  background-image: radial-gradient(#ddd 1px, transparent 1px);
+  background-size: 20px 20px;
+  white-space: nowrap;
+  overflow: auto;
+}
+
+.tree ul {
+  padding-top: 20px;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  margin: 0;
+  padding-left: 0;
+}
+.tree li {
+  float: left;
+  text-align: center;
+  list-style-type: none;
+  position: relative;
+  padding: 20px 10px 0 10px;
+}
+
+.tree li::before,
+.tree li::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 50%;
+  border-top: 2px solid var(--tree-line-color);
+  width: 50%;
+  height: 20px;
+}
+.tree li::after {
+  right: auto;
+  left: 50%;
+  border-left: 2px solid var(--tree-line-color);
+}
+.tree li:only-child::after,
+.tree li:only-child::before {
+  display: none;
+}
+.tree li:only-child {
+  padding-top: 0;
+}
+.tree li:first-child::before,
+.tree li:last-child::after {
+  border: 0 none;
+}
+.tree li:last-child::before {
+  border-right: 2px solid var(--tree-line-color);
+  border-radius: 0 5px 0 0;
+}
+.tree li:first-child::after {
+  border-radius: 5px 0 0 0;
+}
+.tree ul ul::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  border-left: 2px solid var(--tree-line-color);
+  width: 0;
+  height: 20px;
+}
+
+.node-content {
+  border: 2px solid var(--node-border);
+  padding: 8px 12px;
+  text-decoration: none;
+  color: var(--node-text);
+  background-color: var(--node-bg);
+  font-family: "Arial", sans-serif;
+  font-size: 14px;
+  font-weight: bold;
+  display: inline-block;
+  border-radius: 20px;
+  min-width: 30px;
+  position: relative;
+  z-index: 10;
+  box-shadow: 3px 3px 5px rgba(0, 0, 0, 0.1);
+}
+.node-sub {
+  display: block;
+  font-size: 0.7em;
+  color: #555;
+  font-weight: normal;
+  margin-top: 2px;
+}
+
+.node-content.error-node {
+  background-color: #ffcccc;
+  border-color: #cc0000;
+  color: #cc0000;
+  border-radius: 4px;
+}
+
+.log-entry {
+  padding: 8px;
+  border-bottom: 1px solid #333;
+  font-family: "Consolas";
+  font-size: 0.9rem;
+}
+.log-error {
+  color: #ff6b6b;
+  background: rgba(255, 0, 0, 0.1);
+  border-left: 4px solid red;
+}
+.log-success {
+  color: #89d185;
+  border-left: 4px solid green;
+}
+
+/* Estilos Tabla Tokens */
+.token-panel-content {
+  padding: 20px;
+  background-color: #f0f2f5;
+  min-height: 100%;
+  box-sizing: border-box;
+}
+.token-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: "Segoe UI", sans-serif;
+  font-size: 0.95rem;
+  background-color: #ffffff;
+  border-radius: 8px 8px 0 0;
+  overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  color: #333;
+}
+.token-table thead tr {
+  background-color: #1c5298;
+  color: #ffffff;
+  text-align: left;
+}
+.token-table th,
+.token-table td {
+  padding: 12px 15px;
+  border: 1px solid #e1e4e8;
+}
+.token-table th {
+  border-color: #1c5298;
+}
+.token-table tbody tr:nth-of-type(even) {
+  background-color: #f2f6fc;
+}
+.col-token {
+  color: #1c5298;
+  font-weight: bold;
+  width: 30%;
+}
+.col-lexema {
+  color: #d63384;
+  font-family: "Consolas", monospace;
+  font-weight: bold;
+  width: 30%;
+}
+.col-patron {
+  color: #333;
+  width: 40%;
+}
