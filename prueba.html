@@ -18,50 +18,61 @@
           spellcheck="false"
           placeholder="// Escribe tu código aquí..."
         >
-let a = 10;
-
-try {
-  let resultado = a / 0;
-} catch (error) {
-  a = 0;
-}
-
-if (a > 5) {
-  a = 1;
-}
+function dividir(a, b) {
+    return a / b;
+};
 </textarea
         >
         <div class="grammar-panel">
           <div class="grammar-title">GRAMÁTICA & REGLAS</div>
+
           <div style="color: #6a9955" class="grammar-regla">
-            IGNORADO: // Comentarios
+            IGNORADO: // Línea, /* Bloque */
           </div>
           <div>-----------------------------------</div>
 
           <div style="color: #569cd6" class="grammar-regla">P → LS</div>
           <div style="color: #569cd6" class="grammar-regla">LS → S { S }</div>
-
-          <div style="color: #569cd6" class="grammar-regla">S → STry</div>
-          <div style="color: #569cd6" class="grammar-regla">S → C ;</div>
-          <div style="color: #569cd6" class="grammar-regla">S → E ;</div>
-
           <div style="color: #569cd6" class="grammar-regla">
-            STry → try { LS } catch ( ID ) { LS }
+            S → STry | SDecl | SIf | SAssign | SFunc | SReturn
           </div>
 
-          <div style="color: #569cd6" class="grammar-regla">
-            C → E ( > | < | == ) E
+          <div style="color: #c586c0" class="grammar-regla">
+            STry → try { LS } catch ( ID ) { LS } ;
           </div>
+          <div style="color: #569cd6" class="grammar-regla">
+            SDecl → ( let | const ) ID = E ;
+          </div>
+          <div style="color: #c586c0" class="grammar-regla">
+            SIf → if ( E ) { LS } ;
+          </div>
+          <div style="color: #569cd6" class="grammar-regla">
+            SFunc → function ID ( IDs ) { LS } ;
+          </div>
+          <div style="color: #c586c0" class="grammar-regla">
+            SReturn → return E ;
+          </div>
+          <div style="color: #569cd6" class="grammar-regla">
+            SAssign → ID = E ;
+          </div>
+
+          <div>-----------------------------------</div>
+
           <div style="color: #4ec9b0" class="grammar-regla">
-            E → T { ( + | - ) T }
+            E → A { ( == | != | > | < | >= | <= ) A }
+          </div>
+
+          <div style="color: #4ec9b0" class="grammar-regla">
+            A → T { ( + | - ) T }
           </div>
 
           <div style="color: #ce9178" class="grammar-regla">
             T → F { ( * | / ) F }
           </div>
 
+          <div style="color: #dcdcaa" class="grammar-regla">F → - U | U</div>
           <div style="color: #dcdcaa" class="grammar-regla">
-            F → ( E ) | ID | NUM (int/dec)
+            U → ( E ) | ID | NUM
           </div>
         </div>
       </div>

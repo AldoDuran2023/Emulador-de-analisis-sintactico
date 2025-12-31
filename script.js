@@ -1,4 +1,5 @@
 // --- 1. LEXER ---
+// diccionario de tokens
 const TokenType = {
   KEYWORD: "KEYWORD",
   ID: "ID",
@@ -20,6 +21,7 @@ const TokenInfo = {
   [TokenType.EOF]: { nombre: "Fin de archivo", patron: "EOF" },
 };
 
+// máquina que procesa el texto. POO
 class Lexer {
   constructor(input) {
     this.input = input;
@@ -27,12 +29,16 @@ class Lexer {
     this.line = 1;
   }
 
+  // motor principal
   tokenize() {
-    let tokens = [];
+    // lista de objetos token
+    let tokens = []; // aqui se guardan los tokens (generados)
+    // recorre el input con un while
     while (this.pos < this.input.length) {
+      // caracter actual
       let char = this.input[this.pos];
 
-      // Comentarios
+      // Comentarios ignorados de linea y bloque -- // o /* */
       if (char === "/") {
         const next = this.input[this.pos + 1];
         if (next === "/") {
@@ -51,6 +57,7 @@ class Lexer {
               this.pos += 2;
               break;
             }
+            // Manejo de líneas dentro de comentarios de bloque
             if (this.input[this.pos] === "\n") this.line++;
             this.pos++;
           }
@@ -58,8 +65,10 @@ class Lexer {
         }
       }
 
+      // Espacios en blanco \s equivale a espacios, tabs, saltos de linea
       if (/\s/.test(char)) {
         if (char === "\n") this.line++;
+        // avanza al siguiente caracter
         this.pos++;
         continue;
       }
@@ -86,6 +95,7 @@ class Lexer {
         continue;
       }
 
+      // Identificadores y Palabras Reservadas
       if (/[a-zA-Z_]/.test(char)) {
         let id = "";
         while (
@@ -94,9 +104,18 @@ class Lexer {
         )
           id += this.input[this.pos++];
         // AQUI AGREGAMOS "try" y "catch"
-        const isKw = ["let", "if", "else", "function", "try", "catch"].includes(
-          id
-        );
+        const isKw = [
+          "let",
+          "if",
+          "else",
+          "function",
+          "try",
+          "catch",
+          "console.log",
+          "const",
+          "function",
+          "return",
+        ].includes(id);
         tokens.push({
           type: isKw ? TokenType.KEYWORD : TokenType.ID,
           value: id,
@@ -105,6 +124,7 @@ class Lexer {
         continue;
       }
 
+      // Operadores (incluyendo operadores de dos caracteres)
       const twoChar = this.input.substr(this.pos, 2);
       if (["==", ">=", "<=", "!="].includes(twoChar)) {
         tokens.push({
@@ -116,12 +136,14 @@ class Lexer {
         continue;
       }
 
+      // Operadores de un solo carácter
       if (/[+\-*/=><]/.test(char)) {
         tokens.push({ type: TokenType.OP, value: char, line: this.line });
         this.pos++;
         continue;
       }
 
+      // Signos de puntuación
       if (/[(){};]/.test(char)) {
         tokens.push({
           type: TokenType.PUNC,
@@ -134,24 +156,29 @@ class Lexer {
 
       this.pos++;
     }
+    // EOF
     tokens.push({ type: TokenType.EOF, value: "EOF", line: this.line });
     return tokens;
   }
 }
 
-// --- 2. PARSER ---
+// --- 2. PARSER Analizador Sintáctico ---
+// Esta fase recibe los Tokens del Lexer y verifica si tienen sentido gramatical (el orden correcto). Utiliza una técnica llamada Descenso Recursivo.
 class Parser {
   constructor(tokens) {
     this.tokens = tokens;
-    this.current = 0;
-    this.errors = [];
+    this.current = 0; // índice del token actual
+    this.errors = []; // lista de errores encontrados
   }
+  // Mira el token actual sin consumirlo (para decidir qué hacer).
   peek() {
-    return this.tokens[this.current];
+    return this.tokens[this.current]; // token actual
   }
 
+  // Verifica que el token actual sea el esperado (ej. esperar un ; al final). Si es correcto, avanza; si no, lanza un error de sintaxis.
   consume(type, val) {
     const t = this.peek();
+    // Verificación del tipo y valor del token
     if (t.type === type && (!val || t.value === val)) {
       this.current++;
       return t;
@@ -163,8 +190,9 @@ class Parser {
     );
   }
 
+  // Inicia el proceso y devuelve el objeto raíz del programa (Program). Maneja errores atrapándolos y guardándolos en una lista (this.errors).
   parse() {
-    const body = [];
+    const body = []; // lista de declaraciones en el programa sentencia por sentencia
     while (this.peek().type !== TokenType.EOF) {
       try {
         body.push(this.parseStatement());
@@ -177,21 +205,26 @@ class Parser {
     return { type: "Program", body };
   }
 
+  // Si hay un error, esta función "salta" tokens hasta encontrar un punto y coma ;. Esto evita que un solo error detenga todo el análisis.
+  // PANICK MODE
   synchronize() {
     while (this.peek().type !== TokenType.EOF && this.peek().value !== ";")
       this.current++;
     if (this.peek().value === ";") this.current++;
   }
 
+  // Es el cerebro de decisiones. Mira el primer token y decide qué estructura crear:
+  // LAS REGLAS GRAMATICALES VAN AQUI
   parseStatement() {
     const t = this.peek();
 
-    // LÓGICA DE TRY-CATCH (INTEGRADA)
+    // si ve un try, crea una estructura try-catch
     if (t.type === TokenType.KEYWORD && t.value === "try") {
       this.consume(TokenType.KEYWORD);
       this.consume(TokenType.PUNC, "{");
       const tryBlock = [];
       while (this.peek().value !== "}" && this.peek().type !== TokenType.EOF) {
+        // aqui parsea las instrucciones dentro del try
         tryBlock.push(this.parseStatement());
       }
       this.consume(TokenType.PUNC, "}");
@@ -203,79 +236,158 @@ class Parser {
       this.consume(TokenType.PUNC, "{");
       const catchBlock = [];
       while (this.peek().value !== "}" && this.peek().type !== TokenType.EOF) {
+        // aqui parsea las instrucciones dentro del catch
         catchBlock.push(this.parseStatement());
       }
       this.consume(TokenType.PUNC, "}");
+      this.consume(TokenType.PUNC, ";");
       return { type: "TryCatch", tryBlock, errorVar, catchBlock };
     }
 
-    if (t.type === TokenType.KEYWORD && t.value === "let") {
+    // Si ve un let o un const declara una variable, int, string
+    if (
+      (t.type === TokenType.KEYWORD && t.value === "let") ||
+      (t.type === TokenType.KEYWORD && t.value === "const")
+    ) {
       this.consume(TokenType.KEYWORD);
       const id = this.consume(TokenType.ID).value;
       this.consume(TokenType.OP, "=");
+      // Parsea la expresión de inicialización
       const init = this.parseExpression();
       this.consume(TokenType.PUNC, ";");
       return { type: "VarDecl", id, init };
     }
 
+    // Si ve un return, crea un nodo de retorno
+    if (t.type === TokenType.KEYWORD && t.value === "return") {
+      this.consume(TokenType.KEYWORD);
+      // Parsea la expresión que se va a retornar (ej: a / b)
+      const argument = this.parseExpression();
+      this.consume(TokenType.PUNC, ";");
+      return { type: "Return", argument };
+    }
+
+    // Si ve un if, crea una estructura condicional
     if (t.type === TokenType.KEYWORD && t.value === "if") {
       this.consume(TokenType.KEYWORD);
       this.consume(TokenType.PUNC, "(");
+      // Parsea la expresión de prueba
       const test = this.parseExpression();
       this.consume(TokenType.PUNC, ")");
       this.consume(TokenType.PUNC, "{");
       const cons = [];
       while (this.peek().value !== "}" && this.peek().type !== TokenType.EOF)
+        // aqui parsea las instrucciones dentro del if
         cons.push(this.parseStatement());
       this.consume(TokenType.PUNC, "}");
+      this.consume(TokenType.PUNC, ";");
       return { type: "If", test, body: cons };
     }
 
+    // Si ve un ID, asume que es una asignación
     if (t.type === TokenType.ID) {
       const id = this.consume(TokenType.ID).value;
       this.consume(TokenType.OP, "=");
+      // Parsea la expresión del lado derecho
       const right = this.parseExpression();
       this.consume(TokenType.PUNC, ";");
       return { type: "Assign", left: id, right };
     }
 
+    // si ve un function crea una estructura de funcion
+    if (t.type === TokenType.KEYWORD && t.value === "function") {
+      this.consume(TokenType.KEYWORD);
+      const id = this.consume(TokenType.ID).value;
+      this.consume(TokenType.PUNC, "(");
+      const params = [];
+      while (this.peek().value !== ")") {
+        params.push(this.consume(TokenType.ID).value);
+        if (this.peek().value === ",") this.consume(TokenType.PUNC, ",");
+      }
+      this.consume(TokenType.PUNC, ")");
+      this.consume(TokenType.PUNC, "{");
+      const body = [];
+      while (this.peek().value !== "}" && this.peek().type !== TokenType.EOF)
+        body.push(this.parseStatement());
+      this.consume(TokenType.PUNC, "}");
+      this.consume(TokenType.PUNC, ";");
+      return { type: "Function", id, params, body };
+    }
+
+    // Si no reconoce la instrucción, lanza un error
     throw new Error(
       `Instrucción no reconocida en línea ${t.line}: '${t.value}'`
     );
   }
 
+  // manejo de las preceddencias de operadores y estan anidadas
+  // primero las relacionales
   parseExpression() {
     let left = this.parseAddition();
+    // Mientras haya operadores relacionales
     while ([">", "<", ">=", "<=", "==", "!="].includes(this.peek().value)) {
       const operator = this.consume(TokenType.OP).value;
+      // Parsea la expresión del lado derecho
       const right = this.parseAddition();
       left = { type: "Binary", operator, left, right };
     }
     return left;
   }
 
+  // Maneja la precedencia de operadores de adición (+ y -)
   parseAddition() {
     let left = this.parseTerm();
+    // Mientras haya operadores + o -
     while (this.peek().value === "+" || this.peek().value === "-") {
       const operator = this.consume(TokenType.OP).value;
+      // Parsea la expresión del lado derecho
       const right = this.parseTerm();
       left = { type: "Binary", operator, left, right };
     }
     return left;
   }
 
+  // Maneja la precedencia de operadores de multiplicación (* y /)
   parseTerm() {
     let left = this.parseF();
+    // Mientras haya operadores * o /
     while (this.peek().value === "*" || this.peek().value === "/") {
       const operator = this.consume(TokenType.OP).value;
+      // Parsea la expresión del lado derecho
       const right = this.parseF();
       left = { type: "Binary", operator, left, right };
     }
     return left;
   }
 
+  // Maneja los factores: números, identificadores y expresiones entre paréntesis
   parseF() {
     const t = this.peek();
+
+    // Soporte para un único signo negativo (Operador Unario)
+    if (t.type === TokenType.OP && t.value === "-") {
+      this.consume(TokenType.OP, "-");
+      const nextToken = this.peek();
+
+      // Verificamos que lo que sigue NO sea otro operador
+      if (nextToken.type === TokenType.OP) {
+        throw new Error(
+          `Error de Sintaxis (Línea ${nextToken.line}): No se permite el operador '${nextToken.value}' después de un signo negativo.`
+        );
+      }
+
+      // Si no es operador, procesamos lo que sigue (ID, NUM o Paréntesis)
+      const val = this.parsePrimary();
+      return { type: "Unary", operator: "-", argument: val };
+    }
+
+    return this.parsePrimary();
+  }
+
+  // función auxiliar para evitar la recursividad infinita de signos
+  parsePrimary() {
+    const t = this.peek();
+
     if (t.type === TokenType.NUM) {
       this.consume(TokenType.NUM);
       return { type: "Literal", value: t.value };
@@ -286,15 +398,19 @@ class Parser {
     }
     if (t.value === "(") {
       this.consume(TokenType.PUNC, "(");
-      const expr = this.parseExpression();
+      const expr = this.parseExpression(); // Dentro de paréntesis sí puede haber de todo
       this.consume(TokenType.PUNC, ")");
       return expr;
     }
-    throw new Error(`Se esperaba Expresión, se encontró '${t.value}'`);
+
+    throw new Error(
+      `Se esperaba un valor o expresión, pero se encontró '${t.value}'`
+    );
   }
 }
 
-// --- 3. RENDERIZADO ---
+// --- 3. RENDERIZADO, Estas funciones toman el resultado del Parser (el AST) y lo convierten en HTML para mostrarlo en pantalla. ---
+// Crea un pequeño div HTML para representar un nodo del árbol.
 function createNode(label, sub, type) {
   const div = document.createElement("div");
   div.className = "node-content";
@@ -303,13 +419,16 @@ function createNode(label, sub, type) {
   return div;
 }
 
+// Es una función recursiva.
 function renderTree(node) {
   if (!node) return null;
   const li = document.createElement("li");
+  // Dependiendo del tipo de nodo, extrae la información relevante y los hijos.
   let label = node.type,
     sub = "",
     children = [];
 
+  // Maneja los diferentes tipos de nodos del AST
   switch (node.type) {
     case "Program":
       label = "Program";
@@ -350,8 +469,23 @@ function renderTree(node) {
       label = "{ }";
       children = node.body;
       break;
+    case "Unary":
+      label = node.operator;
+      sub = "unario";
+      children = [node.argument];
+      break;
+    case "Function":
+      label = "Function";
+      sub = node.id + "(" + node.params.join(", ") + ")";
+      children = node.body;
+      break;
+    case "Return":
+      label = "Return";
+      sub = "←";
+      children = [node.argument]; // Muestra la expresión hija
+      break;
 
-    // NUEVA VISUALIZACIÓN PARA TRY-CATCH
+    // VISUALIZACIÓN PARA TRY-CATCH
     case "TryCatch":
       label = "Try/Catch";
       children = [
@@ -371,6 +505,7 @@ function renderTree(node) {
       break;
   }
 
+  // Crea el nodo HTML y procesa recursivamente los hijos.
   li.appendChild(createNode(label, sub, node.type));
   if (children && children.length) {
     const ul = document.createElement("ul");
@@ -383,7 +518,8 @@ function renderTree(node) {
   return li;
 }
 
-// --- 4. APP ---
+// --- 4. APP. Esta es la capa que une todo con la interfaz de usuario (HTML). ---
+// Esta es la función maestra que orquesta todo
 function compile() {
   const code = document.getElementById("code").value;
   const consoleEl = document.getElementById("console-content");
@@ -394,12 +530,14 @@ function compile() {
   tokensEl.innerHTML = "";
 
   try {
+    // incializa el lexer y tokeniza el código
     const lexer = new Lexer(code);
     const tokens = lexer.tokenize();
 
-    // Tabla visual
+    // generacion de la tabla de tokens
     let tableHtml = `<table class="token-table"><thead><tr><th>Token</th><th>Lexema</th><th>Patrón</th></tr></thead><tbody>`;
     const vistos = new Set();
+    // Genera la tabla de tokens
     tokens.forEach((t) => {
       if (t.type !== "EOF" && !vistos.has(t.value)) {
         vistos.add(t.value);
@@ -409,12 +547,16 @@ function compile() {
     });
     tokensEl.innerHTML = tableHtml + "</tbody></table>";
 
+    // instacia el parser pasandole los tokens
     const parser = new Parser(tokens);
+    // genera el AST
     const ast = parser.parse();
+    // renderiza el AST en HTML
     const root = document.createElement("ul");
     root.appendChild(renderTree(ast));
     astEl.appendChild(root);
 
+    // muestra errores si los hay
     if (parser.errors.length > 0) {
       consoleEl.innerHTML += `<div class="log-entry log-error"><b>Se encontraron ${parser.errors.length} errores:</b></div>`;
       parser.errors.forEach(
@@ -430,6 +572,7 @@ function compile() {
   }
 }
 
+// Manejo de pestañas
 function showTab(id) {
   document
     .querySelectorAll(".panel")
