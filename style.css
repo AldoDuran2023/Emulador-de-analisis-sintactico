@@ -301,3 +301,43 @@ textarea {
   color: #333;
   width: 40%;
 }
+
+/* Contenedor que alinea los números y el código */
+.editor-wrapper {
+  display: flex;
+  height: 400px; /* Altura fija para el editor */
+  background-color: #1e1e1e;
+  border: 1px solid #3c3c3c;
+  font-family: Consolas, "Courier New", monospace; /* Fuente monoespaciada es OBLIGATORIA */
+  position: relative;
+}
+
+/* Columna de números */
+.line-numbers {
+  width: 40px; /* Ancho fijo */
+  background-color: #252526;
+  color: #858585;
+  text-align: right;
+  padding: 10px 5px;
+  line-height: 1.5; /* Debe coincidir con el textarea */
+  font-size: 14px; /* Debe coincidir con el textarea */
+  overflow: hidden; /* No queremos scroll aquí, lo controlará JS */
+  user-select: none; /* Para que no se seleccionen los números al copiar */
+  border-right: 1px solid #3c3c3c;
+}
+
+/* El area de código */
+#code {
+  flex: 1; /* Ocupa el resto del espacio */
+  background-color: transparent;
+  color: #d4d4d4;
+  border: none;
+  resize: none; /* Desactivar redimensionamiento manual */
+  padding: 10px;
+  line-height: 1.5; /* CRITICO: Igual que .line-numbers */
+  font-size: 14px; /* CRITICO: Igual que .line-numbers */
+  outline: none;
+  white-space: pre; /* Evita que el texto se rompa automáticamente (wrap) para no desalinear los números */
+  overflow: auto; /* Scroll normal */
+  font-family: inherit;
+}

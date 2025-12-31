@@ -512,7 +512,7 @@ function createNode(label, sub, type) {
 // Es una función recursiva.
 function renderTree(node) {
   if (!node) return null;
-  
+
   const li = document.createElement("li");
   // Dependiendo del tipo de nodo, extrae la información relevante y los hijos.
   let label = node.type,
@@ -578,7 +578,7 @@ function renderTree(node) {
 
     case "ConsoleLog":
       label = "Console.log";
-      sub = "🖨️";
+      sub = "Depuración";
       children = [node.argument];
       break;
 
@@ -717,6 +717,7 @@ document
 
       // 3. Compilar automáticamente
       compile();
+      updateLineNumbers();
     };
 
     // Leer el archivo como texto plano
@@ -725,3 +726,63 @@ document
     // Resetear el valor del input para permitir cargar el mismo archivo dos veces si se desea
     event.target.value = "";
   });
+
+// --- 6. INTERFAZ: NÚMEROS DE LÍNEA ---
+
+const codeArea = document.getElementById("code");
+const lineNumbers = document.getElementById("line-numbers");
+
+// Función que cuenta las líneas y dibuja los números
+function updateLineNumbers() {
+  const lines = codeArea.value.split("\n").length;
+  // Genera un array [1, 2, 3...] y lo une con saltos de línea
+  lineNumbers.innerHTML = Array(lines)
+    .fill(0)
+    .map((_, i) => i + 1)
+    .join("<br>");
+}
+
+// Función para sincronizar el scroll vertical
+function syncScroll() {
+  lineNumbers.scrollTop = codeArea.scrollTop;
+}
+
+// Inicializar al cargar la página
+updateLineNumbers();
+
+// --- MODIFICACIÓN IMPORTANTE EN LA FUNCIÓN DE IMPORTAR ARCHIVO ---
+// Busca tu listener del fileInput y agrega updateLineNumbers() al final
+document
+  .getElementById("fileInput")
+  .addEventListener("change", function (event) {
+    // ... tu código existente ...
+    reader.onload = function (e) {
+      // ... tu código existente ...
+      document.getElementById("code").value = content;
+
+      // AGREGAR ESTO:
+      updateLineNumbers();
+
+      compile();
+    };
+    // ...
+  });
+
+// Listener extra para detectar 'Tab' y que no cambie de foco (Opcional pero recomendado para editores)
+codeArea.addEventListener("keydown", function (e) {
+  if (e.key == "Tab") {
+    e.preventDefault();
+    var start = this.selectionStart;
+    var end = this.selectionEnd;
+
+    // Insertar 2 espacios
+    this.value =
+      this.value.substring(0, start) + "  " + this.value.substring(end);
+
+    // Poner el cursor en el lugar correcto
+    this.selectionStart = this.selectionEnd = start + 2;
+
+    // Actualizar números (por si acaso rompes línea, aunque tab no suele hacerlo)
+    updateLineNumbers();
+  }
+});
