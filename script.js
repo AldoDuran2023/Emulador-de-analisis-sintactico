@@ -103,18 +103,66 @@ class Lexer {
           /[a-zA-Z0-9_]/.test(this.input[this.pos])
         )
           id += this.input[this.pos++];
-        // AQUI AGREGAMOS "try" y "catch"
+        if (id === "console" && this.input.substr(this.pos, 4) === ".log") {
+          id = "console.log";
+          this.pos += 4; // Avanzamos 4 caracteres (. l o g)
+        }
+        // AQUI AGREGAMOS "try", "catch" y el resto de palabras reservadas
         const isKw = [
+          // Declaración de variables y funciones
           "let",
-          "if",
-          "else",
-          "function",
-          "try",
-          "catch",
-          "console.log",
           "const",
+          "var",
           "function",
           "return",
+
+          // Control de flujo (Condicionales)
+          "if",
+          "else",
+          "switch",
+          "case",
+          "default",
+
+          // Bucles (Iteraciones)
+          "while",
+          "for",
+          "do",
+          "break",
+          "continue",
+
+          // Manejo de errores
+          "try",
+          "catch",
+          "finally",
+          "throw",
+
+          // Objetos y Clases
+          "class",
+          "extends",
+          "new",
+          "this",
+          "super",
+
+          // Módulos y Asincronía
+          "import",
+          "export",
+          "from",
+          "async",
+          "await",
+
+          // Valores constantes y Operadores tipo palabra
+          "true",
+          "false",
+          "null",
+          "undefined",
+          "typeof",
+          "void",
+          "delete",
+          "in",
+          "instanceof",
+
+          // Comandos de sistema (específicos de tu compilador)
+          "console.log",
         ].includes(id);
         tokens.push({
           type: isKw ? TokenType.KEYWORD : TokenType.ID,
@@ -208,15 +256,35 @@ class Parser {
   // Si hay un error, esta función "salta" tokens hasta encontrar un punto y coma ;. Esto evita que un solo error detenga todo el análisis.
   // PANICK MODE
   synchronize() {
-    while (this.peek().type !== TokenType.EOF && this.peek().value !== ";")
+    while (
+      this.peek().type !== TokenType.EOF &&
+      this.peek().value !== ";" &&
+      this.peek().value !== "}"
+    )
       this.current++;
-    if (this.peek().value === ";") this.current++;
+    if (this.peek().value === ";" || this.peek().value === "}") this.current++;
   }
 
   // Es el cerebro de decisiones. Mira el primer token y decide qué estructura crear:
   // LAS REGLAS GRAMATICALES VAN AQUI
   parseStatement() {
     const t = this.peek();
+
+    if (t.type === TokenType.PUNC && t.value === ";") {
+      this.consume(TokenType.PUNC, ";");
+      return { type: "EmptyStatement" };
+    }
+
+    // Si ve console.log (tratado como KEYWORD en tu lexer)
+    if (t.type === TokenType.KEYWORD && t.value === "console.log") {
+      this.consume(TokenType.KEYWORD);
+      this.consume(TokenType.PUNC, "(");
+      // Permitimos imprimir una expresión (ej: console.log(x) o console.log(5))
+      const argument = this.parseExpression();
+      this.consume(TokenType.PUNC, ")");
+      this.consume(TokenType.PUNC, ";");
+      return { type: "ConsoleLog", argument };
+    }
 
     // si ve un try, crea una estructura try-catch
     if (t.type === TokenType.KEYWORD && t.value === "try") {
@@ -280,7 +348,6 @@ class Parser {
         // aqui parsea las instrucciones dentro del if
         cons.push(this.parseStatement());
       this.consume(TokenType.PUNC, "}");
-      this.consume(TokenType.PUNC, ";");
       return { type: "If", test, body: cons };
     }
 
@@ -310,7 +377,6 @@ class Parser {
       while (this.peek().value !== "}" && this.peek().type !== TokenType.EOF)
         body.push(this.parseStatement());
       this.consume(TokenType.PUNC, "}");
-      this.consume(TokenType.PUNC, ";");
       return { type: "Function", id, params, body };
     }
 
@@ -385,6 +451,7 @@ class Parser {
   }
 
   // función auxiliar para evitar la recursividad infinita de signos
+  // función auxiliar modificada para detectar llamadas a funciones
   parsePrimary() {
     const t = this.peek();
 
@@ -392,13 +459,36 @@ class Parser {
       this.consume(TokenType.NUM);
       return { type: "Literal", value: t.value };
     }
+
+    // AQUI ESTA EL CAMBIO PARA EL FACTORIAL
     if (t.type === TokenType.ID) {
-      this.consume(TokenType.ID);
-      return { type: "ID", name: t.value };
+      const name = this.consume(TokenType.ID).value;
+
+      // Si después del ID hay un '(', es una llamada a función: factorial(n-1)
+      if (this.peek().value === "(") {
+        this.consume(TokenType.PUNC, "(");
+        const args = [];
+        // Si no se cierra inmediatamente, hay argumentos
+        if (this.peek().value !== ")") {
+          // Parseamos el primer argumento
+          args.push(this.parseExpression());
+          // Mientras haya comas, seguimos parseando argumentos
+          while (this.peek().value === ",") {
+            this.consume(TokenType.PUNC, ",");
+            args.push(this.parseExpression());
+          }
+        }
+        this.consume(TokenType.PUNC, ")");
+        return { type: "CallExpression", callee: name, args };
+      }
+
+      // Si no hay '(', es solo una variable normal
+      return { type: "ID", name: name };
     }
+
     if (t.value === "(") {
       this.consume(TokenType.PUNC, "(");
-      const expr = this.parseExpression(); // Dentro de paréntesis sí puede haber de todo
+      const expr = this.parseExpression();
       this.consume(TokenType.PUNC, ")");
       return expr;
     }
@@ -422,6 +512,7 @@ function createNode(label, sub, type) {
 // Es una función recursiva.
 function renderTree(node) {
   if (!node) return null;
+  
   const li = document.createElement("li");
   // Dependiendo del tipo de nodo, extrae la información relevante y los hijos.
   let label = node.type,
@@ -483,6 +574,18 @@ function renderTree(node) {
       label = "Return";
       sub = "←";
       children = [node.argument]; // Muestra la expresión hija
+      break;
+
+    case "ConsoleLog":
+      label = "Console.log";
+      sub = "🖨️";
+      children = [node.argument];
+      break;
+
+    case "CallExpression":
+      label = "Call"; // Llamada a función
+      sub = node.callee + "()";
+      children = node.args; // Muestra los argumentos como hijos
       break;
 
     // VISUALIZACIÓN PARA TRY-CATCH
@@ -588,3 +691,37 @@ function showTab(id) {
 }
 
 setTimeout(compile, 500);
+
+// --- 5. IMPORTACIÓN DE ARCHIVOS ---
+
+// Listener para el input de archivos
+document
+  .getElementById("fileInput")
+  .addEventListener("change", function (event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    // Cuando el archivo se termine de leer
+    reader.onload = function (e) {
+      const content = e.target.result;
+
+      // 1. Poner el contenido en el textarea
+      document.getElementById("code").value = content;
+
+      // 2. Limpiar la consola para feedback visual
+      document.getElementById(
+        "console-content"
+      ).innerHTML = `<div class="log-entry" style="color: #6a9955">ℹ️ Archivo cargado: ${file.name}</div>`;
+
+      // 3. Compilar automáticamente
+      compile();
+    };
+
+    // Leer el archivo como texto plano
+    reader.readAsText(file);
+
+    // Resetear el valor del input para permitir cargar el mismo archivo dos veces si se desea
+    event.target.value = "";
+  });
